@@ -444,6 +444,8 @@ def run(params):
 
     if params.batch.engine == "sge":
         batchjobs = batchjob.SGE(pe_name=params.batch.sge_pe_name)
+    elif params.batch.engine == "pbs":
+        batchjobs = batchjob.PBS(pe_name=params.batch.sge_pe_name)
     elif params.batch.engine == "sh":
         batchjobs = batchjob.ExecLocal(max_parallel=params.batch.sh_max_jobs)
     else:

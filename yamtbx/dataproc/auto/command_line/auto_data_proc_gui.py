@@ -129,7 +129,7 @@ small_wedges = true
  .help = Optimized for small wedge data processing
 
 batch {
- engine = *sge sh
+ engine = *sge pbs sh
   .type = choice(multi=False)
  sge_pe_name = par
   .type = str

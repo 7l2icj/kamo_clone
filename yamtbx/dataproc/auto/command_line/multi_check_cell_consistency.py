@@ -109,7 +109,7 @@ class CellGraph:
 
         connected_nodes = []
 
-        for node in self.G.nodes_iter():
+        for node in list(self.G.nodes()):
             other_cell = self.p1cells[node]
             if other_cell.is_similar_to(p1cell, self.tol_length, self.tol_angle):
                 connected_nodes.append(node)
