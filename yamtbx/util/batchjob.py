@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-(c) RIKEN 2015. All rights reserved. 
+(c) RIKEN 2015. All rights reserved.
 Author: Keitaro Yamashita
 
 This software is released under the new BSD License; see LICENSE.
@@ -50,7 +50,7 @@ class JobManager: # interface
             for job in jobs: self.update_state(job)
             if all(map(lambda job: job.state==STATE_FINISHED, jobs)):
                 return True
-            
+
             time.sleep(interval)
             acc += interval
             if timeout > 0 and acc > timeout: return False
@@ -75,7 +75,7 @@ class LocalThread(threading.Thread):
                              )
         return p
     # start_job()
-    
+
     def run(self):
         while not self._stopevent.isSet():
             # Change state if finished
@@ -93,7 +93,7 @@ class LocalThread(threading.Thread):
                     j = self.waiting_jobs.pop(0)
                     self.p_list.append( (j, self.start_job(j)) )
                     j.state = STATE_RUNNING
-            
+
             time.sleep(0.1)
 
         if self._stopevent.isSet():
@@ -106,33 +106,33 @@ class LocalThread(threading.Thread):
         self._stopevent.set()
         threading.Thread.join(self, timeout)
     # join()
-    
+
 # class LocalThread()
- 
+
 class ExecLocal(JobManager):
-       
+
     def __init__(self, max_parallel):
         JobManager.__init__(self)
         self.num_jobs = max_parallel # referred by control tower when pickling
         self._thread = LocalThread(num_jobs=self.num_jobs)
         self._thread.start()
-        
+
     # __init__()
 
     def submit(self, j):
         self._thread.waiting_jobs.append(j)
         j.state = STATE_SUBMITTED
     # submit()
-    
+
     def update_state(self, j):
         # if running locally, state is changed during execution loop
         pass
-                                            
+
     def stop_all(self):
         self._thread.join()
 
 # class ExecLocal
-        
+
 
 class SGE(JobManager):
     def __init__(self, pe_name="par"):
@@ -140,7 +140,7 @@ class SGE(JobManager):
         self.pe_name = pe_name
 
         qsub_found, qstat_found = False, False
-        
+
         for d in os.environ["PATH"].split(":"):
             if os.path.isfile(os.path.join(d, "qsub")):
                 qsub_found = True
@@ -149,14 +149,14 @@ class SGE(JobManager):
 
         if not( qsub_found and qstat_found ):
             raise SgeError("cannot find qsub or qstat command under $PATH")
-                
+
         self.job_id = {} # [Job: jobid]
     # __init__()
 
     def submit(self, j):
         ##
         # submit script
-        # @return jobID 
+        # @return jobID
 
         script_name = j.script_name
         wdir = j.wdir
@@ -166,20 +166,20 @@ class SGE(JobManager):
         else:
             cmd = "qsub -j y %s" % script_name
 
-        p = subprocess.Popen(cmd, shell=True, cwd=wdir, 
+        p = subprocess.Popen(cmd, shell=True, cwd=wdir,
                              stdout=subprocess.PIPE)
         p.wait()
         stdout = p.stdout.readlines()
-        
+
         if p.returncode != 0:
             raise SgeError("qsub failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
                                                                             stdout))
-        
+
         r = re.search(r"^Your job ([0-9]+) ", stdout[0])
         job_id = r.group(1)
         if job_id == "":
             raise SgeError("cannot read job-id from qsub result. please contact author. stdout is:\n" % stdout)
-        
+
         self.job_id[j] = job_id
         print "Job %s on %s is started. id=%s"%(j.script_name, j.wdir, job_id)
 
@@ -197,7 +197,7 @@ class SGE(JobManager):
 
             else: # if qsub succeeded, RUNNING or WAITING.
                 j.state = STATE_RUNNING
-            
+
     # update_state()
 
     def qstat(self, job_id):
@@ -220,7 +220,7 @@ class SGE(JobManager):
             key = splitted[0].strip()
             val = "".join(splitted[1:]).strip()
             status[key] = val
-            
+
         return status
     # qstat()
 
@@ -228,7 +228,7 @@ class SGE(JobManager):
         for i in self.job_id.values():
             self.qdel(i)
     # stop_all()
-    
+
     def qdel(self, job_id):
         cmd = "qdel %s" % job_id
         p = subprocess.Popen(cmd, shell=True,
@@ -237,7 +237,7 @@ class SGE(JobManager):
         stdout = p.stdout.readlines()
 
         if p.returncode != 0:
-            print "qdel %s failed."%job_id 
+            print "qdel %s failed."%job_id
             return None
         #raise SgeError("qstat failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
         #                                                                     stdout))
@@ -277,11 +277,11 @@ class Job:
                 else:
                     if re_allowed_env.match(k):
                         env += 'export %s="%s"\n' % (k, os.environ[k].replace('"', r'\"'))
-                
+
             env += "\n"
 
-        script = job_header + env + script_text + job_footer 
-        
+        script = job_header + env + script_text + job_footer
+
         open(os.path.join(self.wdir, self.script_name), "w").write(script)
         os.chmod(os.path.join(self.wdir, self.script_name) , stat.S_IXUSR + stat.S_IWUSR + stat.S_IRUSR + stat.S_IRGRP + stat.S_IROTH)
         print "job_file=", os.path.join(self.wdir, self.script_name)
@@ -295,7 +295,7 @@ class PBS(JobManager):
         self.pe_name = pe_name
 
         qsub_found, qstat_found = False, False
-        
+
         for d in os.environ["PATH"].split(":"):
             if os.path.isfile(os.path.join(d, "qsub")):
                 qsub_found = True
@@ -304,14 +304,14 @@ class PBS(JobManager):
 
         if not( qsub_found and qstat_found ):
             raise SgeError("cannot find qsub or qstat command under $PATH")
-                
+
         self.job_id = {} # [Job: jobid]
     # __init__()
 
     def submit(self, j):
         ##
         # submit script
-        # @return jobID 
+        # @return jobID
 
         script_name = j.script_name
         wdir = j.wdir
@@ -321,20 +321,21 @@ class PBS(JobManager):
         else:
             cmd = "qsub -j oe %s" % script_name
 
-        p = subprocess.Popen(cmd, shell=True, cwd=wdir, 
+        p = subprocess.Popen(cmd, shell=True, cwd=wdir,
                              stdout=subprocess.PIPE)
         p.wait()
         stdout = p.stdout.readlines()
-        
+
         if p.returncode != 0:
             raise SgeError("qsub failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
                                                                             stdout))
-        
-        r = re.search(r"^Your job ([0-9]+) ", stdout[0])
+
+        r = re.search(r"^([0-9]+)", stdout[0])
+        print("-----------",r,"---------",stdout[0])
         job_id = r.group(1)
         if job_id == "":
             raise SgeError("cannot read job-id from qsub result. please contact author. stdout is:\n" % stdout)
-        
+
         self.job_id[j] = job_id
         print "Job %s on %s is started. id=%s"%(j.script_name, j.wdir, job_id)
 
@@ -352,7 +353,7 @@ class PBS(JobManager):
 
             else: # if qsub succeeded, RUNNING or WAITING.
                 j.state = STATE_RUNNING
-            
+
     # update_state()
 
     def qstat(self, job_id):
@@ -375,7 +376,7 @@ class PBS(JobManager):
             key = splitted[0].strip()
             val = "".join(splitted[1:]).strip()
             status[key] = val
-            
+
         return status
     # qstat()
 
@@ -383,7 +384,7 @@ class PBS(JobManager):
         for i in self.job_id.values():
             self.qdel(i)
     # stop_all()
-    
+
     def qdel(self, job_id):
         cmd = "qdel %s" % job_id
         p = subprocess.Popen(cmd, shell=True,
@@ -392,7 +393,7 @@ class PBS(JobManager):
         stdout = p.stdout.readlines()
 
         if p.returncode != 0:
-            print "qdel %s failed."%job_id 
+            print "qdel %s failed."%job_id
             return None
         #raise SgeError("qstat failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
         #                                                                     stdout))

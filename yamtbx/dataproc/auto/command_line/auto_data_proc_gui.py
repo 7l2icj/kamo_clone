@@ -1,5 +1,5 @@
 """
-(c) RIKEN 2015. All rights reserved. 
+(c) RIKEN 2015. All rights reserved.
 Author: Keitaro Yamashita
 
 This software is released under the new BSD License; see LICENSE.
@@ -296,7 +296,7 @@ class BssJobs:
         if self.xds_inp_overrides:
             mylog.info("Geometry reference loaded from %s" % ref_file)
             mylog.debug("Loaded geometry: %s" % self.xds_inp_overrides)
-            
+
     def get_job(self, key): return self.jobs.get(key, None)
     def keys(self): return self.jobs.keys()
     def get_xds_workdir(self, key):
@@ -548,7 +548,7 @@ class BssJobs:
                 self.jobs[(prefix, nr2)] = job # This will share the same job object.. any problem??
                 self.jobs_prefix_lookup.setdefault(prefix, set()).add(nr2)
     # _register_job_from_file()
-    
+
     def update_jobs_from_files(self, root_dir, include_dir=[], exclude_dir=[]):
         if include_dir == []: include_dir = [root_dir]
         # XXX what if include_dir has sub directories..
@@ -556,7 +556,7 @@ class BssJobs:
         for rd in include_dir:
             for ds in dataset.find_data_sets(rd, skip_0=True, skip_symlinks=False, split_hdf_miniset=config.params.split_hdf_miniset):
                 self._register_job_from_file(ds, root_dir, exclude_dir)
-                
+
         # Dump jobs
         pickle.dump(self.jobs, open(os.path.join(config.params.workdir, "jobs.pkl"), "wb"), 2)
     # update_jobs_from_files()
@@ -594,7 +594,7 @@ class BssJobs:
 
         workdir = self.get_xds_workdir(key)
         if not os.path.exists(workdir): os.makedirs(workdir)
-        
+
         # Prepare XDS.INP
         img_files = dataset.find_existing_files_in_template(job.filename, nr[0], nr[1],
                                                     datadir=os.path.dirname(prefix), check_compressed=True)
@@ -613,16 +613,16 @@ class BssJobs:
             exclude_resolution_ranges = config.params.xds.exclude_resolution_range
 
         if config.params.exclude_ice_resolutions:
-            exclude_resolution_ranges.extend([[3.93,3.87], 
-                                              [3.70,3.64], 
-                                              [3.47,3.41], 
-                                              [2.70,2.64], 
-                                              [2.28,2.22], 
-                                              [2.102,2.042], 
-                                              [1.978,1.918], 
-                                              [1.948,1.888], 
-                                              [1.913,1.853], 
-                                              [1.751,1.691], 
+            exclude_resolution_ranges.extend([[3.93,3.87],
+                                              [3.70,3.64],
+                                              [3.47,3.41],
+                                              [2.70,2.64],
+                                              [2.28,2.22],
+                                              [2.102,2.042],
+                                              [1.978,1.918],
+                                              [1.948,1.888],
+                                              [1.913,1.853],
+                                              [1.751,1.691],
                                               ])
 
         xdsinp_str = xds_inp.generate_xds_inp(img_files=img_files,
@@ -668,9 +668,9 @@ for i in xrange(%(repeat)d-1):
 """ % dict(exe=sys.executable, args=",".join(map(lambda x: '"%s"'%x, opts)),
            repeat=config.params.xds.repeat,
            wd=os.path.abspath(workdir))
-        
+
         job.write_script(job_str+"\n")
-        
+
         batchjobs.submit(job)
         self.procjobs[key] = job
     # process_data_xds()
@@ -681,7 +681,7 @@ for i in xrange(%(repeat)d-1):
 
         workdir = self.get_xds_workdir(key)
         if not os.path.exists(workdir): os.makedirs(workdir)
-        
+
         # Prepare
         img_files = dataset.find_existing_files_in_template(bssjob.filename, nr[0], nr[1],
                                                     datadir=os.path.dirname(prefix), check_compressed=True)
@@ -719,7 +719,7 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
                          scan_varying=config.params.dials.scan_varying,
                          nproc=config.params.batch.nproc_each),
                     open(os.path.join(workdir, "args.pkl"), "w"), -1)
-        
+
         batchjobs.submit(job)
         self.procjobs[key] = job
     # process_data_dials()
@@ -747,7 +747,7 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
         if config.params.engine == "xds":
             correct_lp = os.path.join(workdir, "CORRECT.LP")
 
-            if key not in self.procjobs: 
+            if key not in self.procjobs:
                 if os.path.exists(os.path.join(workdir, "decision.log")):
                     state = batchjob.STATE_FINISHED
             else:
@@ -776,7 +776,7 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
         elif config.params.engine == "dials":
             summary_pkl = os.path.join(workdir, "kamo_dials.pkl")
 
-            if key not in self.procjobs: 
+            if key not in self.procjobs:
                 if os.path.exists(os.path.join(workdir, "dials_sequence.log")):
                     state = batchjob.STATE_FINISHED
             else:
@@ -796,7 +796,7 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
 
                     try: sg = str(pkl["symm"].space_group_info())
                     except: sg = "?"
-                    try: 
+                    try:
                         cmpl = pkl["stats"].overall.completeness*100
                     except: cmpl = float("nan")
 
@@ -851,13 +851,13 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
                 pkl = pickle.load(open(summary_pkl))
                 try: ret["resn"] = float(pkl.get("d_min"))
                 except: ret["resn"] = float("nan")
-                
+
                 try:
                     ret["sg"] = str(pkl["symm"].space_group_info())
                     ret["cell"] = pkl["symm"].unit_cell().parameters()
                 except: ret["sg"] = "?"
 
-                try: 
+                try:
                     ret["cmpl"] = pkl["stats"].overall.completeness*100
                 except: ret["cmpl"] = float("nan")
 
@@ -874,7 +874,7 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
         print ret
         return ret
     # get_process_result()
-        
+
 # class BssJobs
 
 # Singleton objects
@@ -960,7 +960,7 @@ class WatchLogThread:
                     bssjobs.cell_graph.add_proc_result(key, bssjobs.get_xds_workdir(key))
 
             # Make html report # TODO Add DIALS support
-            html_report.make_kamo_report(bssjobs, 
+            html_report.make_kamo_report(bssjobs,
                                          topdir=config.params.topdir,
                                          htmlout=os.path.join(config.params.workdir, "report.html"))
             #print
@@ -992,7 +992,7 @@ class MyCheckListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
         wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT|wx.LC_SINGLE_SEL|wx.LC_VIRTUAL)
         CheckListCtrlMixin.__init__(self)
         ListCtrlAutoWidthMixin.__init__(self)
-        
+
         self.SetFont(wx.Font(12, wx.SWISS, wx.NORMAL, wx.NORMAL))
         self.InsertColumn(0, "Path", wx.LIST_FORMAT_LEFT, width=400) # with checkbox
         self.InsertColumn(1, "Sample ID", wx.LIST_FORMAT_LEFT, width=90)
@@ -1043,7 +1043,7 @@ class MyCheckListCtrl(wx.ListCtrl, CheckListCtrlMixin, ListCtrlAutoWidthMixin):
             self._sort_acend = True
         else:
             self._sort_acend = not self._sort_acend
-        
+
         perm = range(len(self.items))
         def trans_func(idx):
             # 0:lab, 1:sample, 2:wavelen, 3:phirange, 4:deltaphi, 5,6:status, 7:cmpl, 8:sg, 9:resn
@@ -1203,7 +1203,7 @@ class MultiMergeDialog(wx.Dialog):
         vbox = wx.BoxSizer(wx.VERTICAL)
         mpanel.SetSizer(vbox)
 
-        
+
 
     # __init__()
 
@@ -1283,7 +1283,7 @@ class ControlPanel(wx.Panel):
             if sg is not None: item[8] = str(sg)
             if resn is not None: item[9] = "%.1f" % resn
             lc.update_item(key, item)
-        
+
         lc.SetItemCount(len(lc.items))
         self.lblDS.SetLabel("%3d datasets collected (%3d processed, %3d failed, %3d undone) workdir: %s" % (lc.GetItemCount(), n_proc, n_giveup, lc.GetItemCount()-(n_proc+n_giveup), os.path.relpath(config.params.workdir, config.params.topdir)))
 
@@ -1299,7 +1299,7 @@ class ControlPanel(wx.Panel):
 
             # If exists, don't overwrite with blank data
             if lc.get_item((prefix, nr)): continue
-            
+
             item = [lab]
             if job.sample is not None: item.append("%s(%.2d)" % job.sample)
             else: item.append("none")
@@ -1315,10 +1315,10 @@ class ControlPanel(wx.Panel):
 
             lc.update_item((prefix, nr), item)
             assert len(item) == lc.GetColumnCount()
-        
+
         lc.SetItemCount(len(lc.items))
     # update_listctrl()
-    
+
     def listctrl_item_right_click(self, ev):
         lc = self.listctrl
         idx = lc.GetFirstSelected()
@@ -1378,12 +1378,12 @@ class ControlPanel(wx.Panel):
         from yamtbx.dataproc.auto.command_line.multi_prep_merging import PrepMerging
         pm = PrepMerging(cm)
         ask_str = pm.find_groups()
-        
+
         if len(cm.groups) == 0:
             wx.MessageDialog(None, "Oh, no. No data",
                              "Error", style=wx.OK).ShowModal()
             return
-        
+
         mpd = MultiPrepDialog(cm=cm)
         group, symmidx, workdir, cell_method, nproc, prep_dials_files, into_workdir = mpd.ask(ask_str)
         mpd.Destroy()
@@ -1496,14 +1496,14 @@ class ResultLeftPanel(wx.Panel):
 
     def spinRawFrame_spin(self, ev):
         self.txtRawFrame.SetValue(str(self.spinRawFrame.GetValue()))
-        if mainFrame.adxv.is_alive(): 
+        if mainFrame.adxv.is_alive():
             wx.CallAfter(self.btnRawShow_click, None, False)
     # spinRawFrame_spin()
 
     def btnPredictShow_click(self, ev, raise_window=True):
         frame = int(self.txtPredictFrame.GetValue())
         prefix, nr = self.current_key
-        
+
         if self.current_workdir is None: return
         if frame == self.spinPredictFrame.GetMax():
             framecbf = os.path.join(self.current_workdir,"FRAME.cbf")
@@ -1525,7 +1525,7 @@ class ResultLeftPanel(wx.Panel):
 
     def spinPredictFrame_spin(self, ev):
         self.txtPredictFrame.SetValue(str(self.spinPredictFrame.GetValue()))
-        if mainFrame.adxv.is_alive(): 
+        if mainFrame.adxv.is_alive():
             wx.CallAfter(self.btnPredictShow_click, None, False)
     # spinPredictFrame_spin()
 
@@ -1543,7 +1543,7 @@ class ResultLeftPanel(wx.Panel):
         for lr, rr in result["exclude_data_ranges"]:
             if lr==rr: exc_ranges_strs.append("%d"%lr)
             else: exc_ranges_strs.append("%d-%d"%(lr,rr))
-        
+
         exc_ranges = ", ".join(exc_ranges_strs)
         if not exc_ranges_strs: exc_ranges = "(none)"
 
@@ -1559,14 +1559,14 @@ class ResultLeftPanel(wx.Panel):
         log_lines = []
         if os.path.isfile(decilog):
             log_lines = open(decilog).readlines()[2:-1]
-            
+
         ISa = "%.2f"%result["ISa"] if "ISa" in result else "n/a"
         cell_str = ", ".join(map(lambda x: "%.2f"%x,result["cell"])) if "cell" in result else "?"
         sg = result.get("sg", "?")
         symm_warning = ""
         if log_lines and any(map(lambda x: "WARNING: symmetry in scaling is different from Pointless" in x, log_lines)):
             symm_warning = " (WARNING: see log)"
-        
+
         html_str += """\
 <tr align="left"><th>ISa</th><td>%(ISa)s</td></tr>
 <tr align="left"><th>Symmetry</th><td>%(sg)s :  %(cell_str)s%(symm_warning)s</td></tr>
@@ -1576,7 +1576,7 @@ class ResultLeftPanel(wx.Panel):
 
         if log_lines:
             html_str += "<br><br><b>Log</b><br><pre>%s</pre>" % "".join(log_lines)
-        
+
         self.summaryHtml.SetPage(html_str)
     # update_summary()
 
@@ -1592,7 +1592,7 @@ class PlotPanel(wx.lib.scrolledpanel.ScrolledPanel): # Why this needs to be Scro
         self.subplots = map(lambda i: self.figure.add_subplot(nplots,1,i+1), xrange(nplots))
         self.p = map(lambda x:[], xrange(nplots))
         self.lim = map(lambda i: dict(x=[], y=[]), xrange(nplots))
-        
+
         self.canvas = matplotlib.backends.backend_wxagg.FigureCanvasWxAgg(self, wx.ID_ANY, self.figure)
         vbox.Add(self.canvas, 1, flag=wx.ALL|wx.EXPAND)
     # __init__
@@ -1637,7 +1637,7 @@ class PlotPanel(wx.lib.scrolledpanel.ScrolledPanel): # Why this needs to be Scro
 
     def refresh(self):
         self.SetSize((self.Size[0],self.Size[1]))
-        self.canvas.draw()        
+        self.canvas.draw()
 
 # class PlotPanel
 
@@ -1885,8 +1885,8 @@ This is an alpha-version. If you found something wrong, please let staff know! W
         if wx.MessageDialog(None, "You selected XDS, but XDS is not installed or expired at least in this computer. Proceed anyway?",
                             "Warning", style=wx.OK|wx.CANCEL).ShowModal() == wx.ID_CANCEL:
             return
-    
-    
+
+
     # Setup logging
     mylog.config(beamline=config.params.bl, log_root=config.params.log_root)
     mylog.info("Program started in %s." % os.getcwd())
@@ -1924,7 +1924,7 @@ This is an alpha-version. If you found something wrong, please let staff know! W
             return
         if config.params.xds.override.rotation_axis:
             mylog.error("When xds.override.rotation_axis= is given, you cannot specify reverse_phi= option")
-            return            
+            return
 
     if config.params.topdir is None: config.params.topdir = os.getcwd()
     if not os.path.isabs(config.params.topdir):
@@ -1942,7 +1942,7 @@ This is an alpha-version. If you found something wrong, please let staff know! W
     for i, d in enumerate(config.params.include_dir):
         if not os.path.isabs(d): config.params.include_dir[i] = os.path.join(config.params.topdir, d)
     for i, d in enumerate(config.params.exclude_dir):
-        if not os.path.isabs(d): config.params.exclude_dir[i] = os.path.join(config.params.topdir, d)        
+        if not os.path.isabs(d): config.params.exclude_dir[i] = os.path.join(config.params.topdir, d)
 
     if not os.path.exists(config.params.workdir):
         os.makedirs(config.params.workdir)
@@ -1952,7 +1952,7 @@ This is an alpha-version. If you found something wrong, please let staff know! W
 
     mylog.add_logfile(os.path.join(config.params.workdir, "kamo_gui.log"))
     mylog.info("Starting GUI in %s" % config.params.workdir)
-    
+
     # Save params
     savephilpath = os.path.join(config.params.workdir, time.strftime("gui_params_%y%m%d-%H%M%S.txt"))
     with open(savephilpath, "w") as ofs:
@@ -1968,6 +1968,13 @@ This is an alpha-version. If you found something wrong, please let staff know! W
         except batchjob.SgeError, e:
             mylog.error(e.message)
             mylog.error("SGE not configured. If you want to run KAMO on your local computer only (not to use queueing system), please specify batch.engine=sh")
+            return
+    elif config.params.batch.engine == "pbs":
+        try:
+            batchjobs = batchjob.PBS(pe_name=config.params.batch.sge_pe_name)
+        except batchjob.SgeError, e:
+            mylog.error(e.message)
+            mylog.error("PBS not configured. If you want to run KAMO on your local computer only (not to use queueing system), please specify batch.engine=sh")
             return
     elif config.params.batch.engine == "sh":
         if config.params.batch.sh_max_jobs == libtbx.Auto:
