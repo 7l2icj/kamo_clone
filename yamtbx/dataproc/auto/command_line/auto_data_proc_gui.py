@@ -4,6 +4,7 @@ Author: Keitaro Yamashita
 
 This software is released under the new BSD License; see LICENSE.
 """
+
 from yamtbx.dataproc.auto import gui_config as config
 from yamtbx.dataproc.auto import gui_logger as mylog
 from yamtbx.dataproc.auto import html_report
@@ -29,6 +30,7 @@ import libtbx.easy_mp
 from cctbx import sgtbx
 from cctbx import crystal
 from cctbx.crystal import reindex
+import subprocess
 
 import wx
 #import wx.gizmos
@@ -129,7 +131,7 @@ small_wedges = true
  .help = Optimized for small wedge data processing
 
 batch {
- engine = *sge pbs sh
+ engine = sge pbs slurm sh *auto
   .type = choice(multi=False)
  sge_pe_name = par
   .type = str
@@ -235,6 +237,9 @@ split_data_by_deg = None
 log_root = None
  .type = path
  .help = debug log directory
+auto_close = *no nogui gui
+ .type = choice(multi=False)
+ .help = auto close 
 """
 
 def read_override_config(imgdir):
@@ -451,7 +456,7 @@ class BssJobs:
                     tmp_in = set(reduce(lambda x,y: x+y, map(lambda x:range(x[0],x[1]+1), self.jobs_prefix_lookup[prefix])))
                     # XXX Resolve overlap!!
                     if set(range(nr[0],nr[1]+1)).intersection(tmp_in):
-                        print "tmp_in=", tmp_in, nr
+                        print("tmp_in=", tmp_in, nr)
                         mylog.warning("Range overlapped! Discarding this data..sorry.")
                         remove_idxes.append(i)
                         continue
@@ -519,7 +524,7 @@ class BssJobs:
             h_last = XIO.Image(images[-1]).header
             job.osc_end = h_last.get("PhiEnd", 0)
             if h_next.get("PhiStart", 0) == h.get("PhiStart", 0):
-                print "This job may be scan?:",  tmpl
+                print("This job may be scan?:",  tmpl)
                 return
 
         job.wavelength = h.get("Wavelength", 0)
@@ -533,7 +538,7 @@ class BssJobs:
         job.prefix = prefix
 
         if job.osc_step == 0 or job.osc_end - job.osc_start == 0:
-            print "This job don't look like osc data set:",  tmpl
+            print("This job don't look like osc data set:",  tmpl)
             return
 
         if config.params.split_data_by_deg is None or job.osc_step==0:
@@ -846,7 +851,7 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
 
         elif config.params.engine == "dials":
             summary_pkl = os.path.join(workdir, "kamo_dials.pkl")
-            print summary_pkl
+            print(summary_pkl)
             if os.path.isfile(summary_pkl):
                 pkl = pickle.load(open(summary_pkl))
                 try: ret["resn"] = float(pkl.get("d_min"))
@@ -866,12 +871,12 @@ run_dials_auto.run_dials_sequence(**pickle.load(open("args.pkl")))
                     pkl["stats"].show(out=sio, header=False)
                     lines = sio.getvalue().replace("<","&lt;").replace(">","&gt;").splitlines()
                     i_table_begin = filter(lambda x: "Statistics by resolution bin:" in x[1], enumerate(lines))
-                    print                     i_table_begin
+                    print(i_table_begin)
                     if len(i_table_begin) == 1:
                         ret["table_html"] = "\n".join(lines[i_table_begin[0][0]+1:])
 
 
-        print ret
+        print(ret)
         return ret
     # get_process_result()
 
@@ -952,8 +957,10 @@ class WatchLogThread:
                         else:
                             mylog.info("Waiting for files: %s" % str(key))
 
+
             ev = EventLogsUpdated(job_statuses=job_statuses)
-            wx.PostEvent(self.parent, ev)
+            if self.parent:
+                wx.PostEvent(self.parent, ev)
 
             for key in job_statuses:
                 if job_statuses[key][0] == "finished":
@@ -977,7 +984,21 @@ class WatchLogThread:
                 for i in xrange(int(self.interval/.5)):
                     if self.keep_going:
                         time.sleep(.5)
-
+            #auto close
+            if config.params.auto_close != "no":
+                finished = 0
+                for key in bssjobs.keys():
+                    job_statuses[key] = bssjobs.get_process_status(key)
+                    status = job_statuses[key][0]
+                    if status == "finished" or status == "giveup":
+                        finished += 1
+                if len(bssjobs.keys()) == finished:
+                    # close to kamo
+                    self.keep_going = False
+                    if self.parent:
+                        #wx.PostEvent(self.parent, wx.EVT_CLOSE)
+                        self.parent.Close(True)
+                        wx.PostEvent(self.parent, ev)
         mylog.info("WatchLogThread loop FINISHED")
         self.running = False
         #wx.PostEvent(self.parent, EventDirWatcherStopped()) # Ensure the checkbox unchecked when accidentally exited.
@@ -1365,7 +1386,7 @@ class ControlPanel(wx.Panel):
             try: wx.SafeYield()
             except: pass
             while not bssjobs.cell_graph.is_all_included(keys):
-                print "waiting.."
+                print("waiting..")
                 time.sleep(1)
             busyinfo = None
 
@@ -1399,13 +1420,11 @@ class ControlPanel(wx.Panel):
                               nproc=nproc, prep_dials_files=prep_dials_files, into_workdir=into_workdir)
         pm.write_merging_scripts(workdir, config.params.batch.sge_pe_name, prep_dials_files)
 
-        print "\nFrom here, Do It Yourself!!\n"
-        print "cd", workdir
-        print "..then edit and run merge_blend.sh and/or merge_ccc.sh"
-        print
-
-        wx.MessageDialog(None, "Now ready. From here, please use command-line. Look at your terminal..\n" + msg,
-                         "Ready for merging", style=wx.OK).ShowModal()
+        print("\nFrom here, Do It Yourself!!\n")
+        print("cd", workdir)
+        print("..then edit and run merge_blend.sh and/or merge_ccc.sh")
+        print(wx.MessageDialog(None, "Now ready. From here, please use command-line. Look at your terminal..\n" + msg,
+                         "Ready for merging", style=wx.OK).ShowModal())
 
 
         # Merge
@@ -1600,7 +1619,7 @@ class PlotPanel(wx.lib.scrolledpanel.ScrolledPanel): # Why this needs to be Scro
     """
     def _SetSize(self):
         size = self.GetClientSize()
-        print "psize=",size
+        print("psize=",size)
         size[1] //= 2
         self.SetSize(size)
         self.canvas.SetSize(size)
@@ -1839,7 +1858,7 @@ def run_from_args(argv):
     global mainFrame
     global bssjobs
 
-    print """
+    print("""
 KAMO (Katappashikara Atsumeta data wo Manual yorimoiikanjide Okaeshisuru) system is an automated data processing system for SPring-8 beamlines.
 This is an alpha-version. If you found something wrong, please let staff know! We would appreciate your feedback.
 
@@ -1862,10 +1881,10 @@ This is an alpha-version. If you found something wrong, please let staff know! W
 ** This program must be started in the top directory of your datasets! **
    (Only processes the data in the subdirectories)
 
-"""
+""")
 
     if "-h" in argv or "--help" in argv:
-        print "All parameters:\n"
+        print("All parameters:\n")
         iotbx.phil.parse(gui_phil_str).show(prefix="  ", attributes_level=1)
         return
 
@@ -1875,7 +1894,7 @@ This is an alpha-version. If you found something wrong, please let staff know! W
     args = cmdline.remaining_args
 
     if config.params.bl is None:
-        print "ERROR: bl= is needed."
+        print("ERROR: bl= is needed.")
         return
 
     app = wx.App()
@@ -1962,6 +1981,25 @@ This is an alpha-version. If you found something wrong, please let staff know! W
                                                                    prefix="")
     mylog.info("GUI parameters were saved as %s" % savephilpath)
 
+    if config.params.batch.engine == "auto":
+        config.params.batch.engine = batchjob.detect_engine()
+        # try:
+        #     proc = subprocess.check_output(["squeue", "--help"], stderr=subprocess.PIPE)
+        #     print("slurm detected. batch.engine=slurm")
+        #     config.params.batch.engine = "slurm"
+        # except:
+        #     try:
+        #         proc = subprocess.check_output(["qstat", "-h"], stderr=subprocess.PIPE)
+        #         if " -pe " in proc:
+        #             config.params.batch.engine = "sge"
+        #             print("sge detected. batch.engine=sge ")
+        #         else:
+        #             print("pbs detected. batch.engine=pbs ")
+        #             config.params.batch.engine = "pbs"
+        #     except:
+        #         config.params.batch.engine = "sh"
+        #         print("job scheduler was not found. batch.engine=sh")
+
     if config.params.batch.engine == "sge":
         try:
             batchjobs = batchjob.SGE(pe_name=config.params.batch.sge_pe_name)
@@ -1976,6 +2014,13 @@ This is an alpha-version. If you found something wrong, please let staff know! W
             mylog.error(e.message)
             mylog.error("PBS not configured. If you want to run KAMO on your local computer only (not to use queueing system), please specify batch.engine=sh")
             return
+    elif config.params.batch.engine == "slurm":
+        try:
+            batchjobs = batchjob.SLURM(pe_name=config.params.batch.sge_pe_name)
+        except batchjob.SgeError, e:
+            mylog.error(e.message)
+            mylog.error("SLURM not configured. If you want to run KAMO on your local computer only (not to use queueing system), please specify batch.engine=sh")
+            return
     elif config.params.batch.engine == "sh":
         if config.params.batch.sh_max_jobs == libtbx.Auto:
             nproc_all = libtbx.easy_mp.get_processes(None)
@@ -1987,7 +2032,8 @@ This is an alpha-version. If you found something wrong, please let staff know! W
                 config.params.batch.sh_max_jobs = 1
         batchjobs = batchjob.ExecLocal(max_parallel=config.params.batch.sh_max_jobs)
     else:
-        raise "Unknown batch engine: %s" % config.params.batch.engine
+        print(config.params.batch.engine)
+        raise ("Unknown batch engine: %s" % config.params.batch.engine)
 
     if "normal" in config.params.mode and config.params.bl != "other":
         config.params.blconfig.append("/isilon/blconfig/bl%s" % config.params.bl)
@@ -2011,10 +2057,36 @@ This is an alpha-version. If you found something wrong, please let staff know! W
     if config.params.xds.override.geometry_reference:
         bssjobs.load_override_geometry(config.params.xds.override.geometry_reference)
 
-    mainFrame = MainFrame(parent=None, id=wx.ID_ANY)
-    app.TopWindow = mainFrame
-    app.MainLoop()
-
+    if config.params.auto_close == "nogui":
+        print("NoGui mode. ")
+        watchlog = WatchLogThread(None)
+        watchlog.start(10)
+        while watchlog.is_running():
+            time.sleep(10)
+        # watchlog.start(10)
+        # while watchlog.is_running():
+        #     if len(bssjobs.jobs) > 0:
+        #         finished = 0
+        #         for key in bssjobs.keys():
+        #             job_status = bssjobs.get_process_status(key)
+        #             status = job_status[0]
+        #             #job = bssjobs.get_job(key)
+        #             if status == "finished":
+        #                 finished += 1
+        #         if finished == len(bssjobs.keys()):
+        #             print("All jobs are finished")
+        #             watchlog.keep_going = False
+        #             break
+        #         else:
+        #             #print("\r{}/{}".format(finished,len(bssjobs.keys())))
+        #             time.sleep(1)
+        #     else:
+        #         print("job is not found.")
+        #         time.sleep(1)
+    else:
+        mainFrame = MainFrame(parent=None, id=wx.ID_ANY)
+        app.TopWindow = mainFrame
+        app.MainLoop()
     mylog.info("Normal exit.")
 
 

@@ -87,7 +87,7 @@ rescut {
 }
 
 batch {
- engine = sge sh *no
+ engine = sge pbs slurm sh *auto no
   .type = choice(multi=False)
  sge_pe_name = par
   .type = str
@@ -442,10 +442,15 @@ def run(params):
         if ref_filename in ref_arrays: continue
         ref_arrays[ref_filename] = read_reference_data(ref_filename, log_out)
 
+    print("----------- engine ------" ,params.batch.engine)
+    if params.batch.engine == "auto":
+        params.batch.engine = batchjob.detect_engine()
     if params.batch.engine == "sge":
         batchjobs = batchjob.SGE(pe_name=params.batch.sge_pe_name)
     elif params.batch.engine == "pbs":
         batchjobs = batchjob.PBS(pe_name=params.batch.sge_pe_name)
+    elif params.batch.engine == "slurm":
+        batchjobs = batchjob.SLURM(pe_name=params.batch.sge_pe_name)
     elif params.batch.engine == "sh":
         batchjobs = batchjob.ExecLocal(max_parallel=params.batch.sh_max_jobs)
     else:
@@ -527,8 +532,8 @@ kamo.auto_multi_merge.dev \
   merge.clustering=cc \
   merge.cc_clustering.min_acmpl=90 \
   merge.cc_clustering.min_aredun=2 \
-  batch.engine=sge \
-  merge.batch.engine=sge \
+  batch.engine=auto \
+  merge.batch.engine=auto \
   merge.batch.par_run=merging \
 
 CSV file should look like (first line must be a header line):
