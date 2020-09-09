@@ -136,20 +136,36 @@ class ExecLocal(JobManager):
 
 class SGE(JobManager):
     def __init__(self, pe_name="par"):
-        JobManager.__init__(self)
-        self.pe_name = pe_name
-
         qsub_found, qstat_found = False, False
 
-        for d in os.environ["PATH"].split(":"):
-            if os.path.isfile(os.path.join(d, "qsub")):
-                qsub_found = True
-            if os.path.isfile(os.path.join(d, "qstat")):
-                qstat_found = True
+        # for d in os.environ["PATH"].split(":"):
+        #     if os.path.isfile(os.path.join(d, "qsub")):
+        #         qsub_found = True
+        #     if os.path.isfile(os.path.join(d, "qstat")):
+        #         qstat_found = True
+        # if not( qsub_found and qstat_found ):
+        #     raise SgeError("cannot find qsub or qstat command under $PATH")
 
-        if not( qsub_found and qstat_found ):
-            raise SgeError("cannot find qsub or qstat command under $PATH")
-
+        self.engine = detect_engine()
+        if self.engine == "sge":
+            self.qsub_cmd = lambda job_name,cpu,script_name:"qsub -j y -pe %s %d %s" % (job_name, cpu, script_name)
+            self.qsub_regex = r"^Your job ([0-9]+) "
+            self.qstat_cmd = lambda job_id:"qstat -j %s" % job_id
+            self.qdel_cmd = lambda job_id:"qdel %s" % job_id
+        elif self.engine == "pbs":
+            self.qsub_cmd = lambda job_name,cpu,script_name:"qsub -j oe -N %s -l ncpus=%d %s" % (job_name, cpu, script_name)
+            self.qsub_regex = r"^([0-9]+)"
+            self.qstat_cmd = lambda job_id: "qstat  %s" % job_id
+            self.qdel_cmd = lambda job_id:"qdel %s" % job_id
+        elif self.engine == "slurm":
+            self.qsub_cmd = lambda job_name,cpu,script_name:"sbatch --job-name=%s --cpus-per-task=%d %s" % (job_name, cpu, script_name)
+            self.qsub_regex =r"Submitted batch job ([0-9]+)"
+            self.qstat_cmd = lambda job_id: "squeue -h --job=%s" % job_id
+            self.qdel_cmd = lambda job_id:  "scancel %s" % job_id
+        else:
+            raise SgeError("cannot find qsub or sbatch command under $PATH")
+        JobManager.__init__(self)
+        self.pe_name = pe_name
         self.job_id = {} # [Job: jobid]
     # __init__()
 
@@ -161,10 +177,10 @@ class SGE(JobManager):
         script_name = j.script_name
         wdir = j.wdir
 
-        if j.nproc > 1:
-            cmd = "qsub -j y -pe %s %d %s" % (self.pe_name, j.nproc, script_name)
-        else:
-            cmd = "qsub -j y %s" % script_name
+        if j.nproc >= 1:
+            cmd = self.qsub_cmd(self.pe_name, j.nproc, script_name)
+        # else:
+        #     cmd = "qsub -j y %s" % script_name
 
         p = subprocess.Popen(cmd, shell=True, cwd=wdir,
                              stdout=subprocess.PIPE)
@@ -172,16 +188,16 @@ class SGE(JobManager):
         stdout = p.stdout.readlines()
 
         if p.returncode != 0:
-            raise SgeError("qsub failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
+            raise SgeError("%s failed. returncode is %d.\nstdout:\n%s\n"%(self.engine, p.returncode,
                                                                             stdout))
 
-        r = re.search(r"^Your job ([0-9]+) ", stdout[0])
+        r = re.search(self.qsub_regex, stdout[0])
         job_id = r.group(1)
         if job_id == "":
             raise SgeError("cannot read job-id from qsub result. please contact author. stdout is:\n" % stdout)
 
         self.job_id[j] = job_id
-        print "Job %s on %s is started. id=%s"%(j.script_name, j.wdir, job_id)
+        print("Job %s on %s is started. id=%s"%(j.script_name, j.wdir, job_id))
 
     # submit()
 
@@ -201,14 +217,14 @@ class SGE(JobManager):
     # update_state()
 
     def qstat(self, job_id):
-        cmd = "qstat -j %s" % job_id
+        cmd = self.qstat_cmd(job_id)
         p = subprocess.Popen(cmd, shell=True,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         stdout = p.stdout.readlines()
 
-        if p.returncode != 0:
-            print "job %s finished (qstat returned %s)." % (job_id, p.returncode)
+        if p.returncode != 0 or len(stdout) == 0:
+            print "job %s finished (%s returned %s)." % (job_id,cmd, p.returncode)
             return None
         #raise SgeError("qstat failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
         #                                                                     stdout))
@@ -230,14 +246,14 @@ class SGE(JobManager):
     # stop_all()
 
     def qdel(self, job_id):
-        cmd = "qdel %s" % job_id
+        cmd = self.qdel_cmd(job_id)
         p = subprocess.Popen(cmd, shell=True,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         stdout = p.stdout.readlines()
 
         if p.returncode != 0:
-            print "qdel %s failed."%job_id
+            print("%s failed."%cmd)
             return None
         #raise SgeError("qstat failed. returncode is %d.\nstdout:\n%s\n"%(p.returncode,
         #                                                                     stdout))
@@ -506,6 +522,13 @@ class SLURM(JobManager):
         if p.returncode != 0:
             print "scancel %s failed."%job_id
             return None
+
+def auto_engine():
+    engine = detect_engine()
+    if engine == "pbs" or engine == "sge" or engine == "slurm":
+        return "sge"
+    else:
+        return engine
 
 def detect_engine():
     try:

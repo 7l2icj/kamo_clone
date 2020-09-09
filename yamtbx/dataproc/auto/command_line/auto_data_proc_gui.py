@@ -131,7 +131,7 @@ small_wedges = true
  .help = Optimized for small wedge data processing
 
 batch {
- engine = sge pbs slurm sh *auto
+ engine = *sge pbs slurm sh auto
   .type = choice(multi=False)
  sge_pe_name = par
   .type = str
@@ -1982,23 +1982,7 @@ This is an alpha-version. If you found something wrong, please let staff know! W
     mylog.info("GUI parameters were saved as %s" % savephilpath)
 
     if config.params.batch.engine == "auto":
-        config.params.batch.engine = batchjob.detect_engine()
-        # try:
-        #     proc = subprocess.check_output(["squeue", "--help"], stderr=subprocess.PIPE)
-        #     print("slurm detected. batch.engine=slurm")
-        #     config.params.batch.engine = "slurm"
-        # except:
-        #     try:
-        #         proc = subprocess.check_output(["qstat", "-h"], stderr=subprocess.PIPE)
-        #         if " -pe " in proc:
-        #             config.params.batch.engine = "sge"
-        #             print("sge detected. batch.engine=sge ")
-        #         else:
-        #             print("pbs detected. batch.engine=pbs ")
-        #             config.params.batch.engine = "pbs"
-        #     except:
-        #         config.params.batch.engine = "sh"
-        #         print("job scheduler was not found. batch.engine=sh")
+        config.params.batch.engine = batchjob.auto_engine()
 
     if config.params.batch.engine == "sge":
         try:

@@ -87,7 +87,7 @@ rescut {
 }
 
 batch {
- engine = sge pbs slurm sh *auto no
+ engine = *sge pbs slurm sh auto no
   .type = choice(multi=False)
  sge_pe_name = par
   .type = str
@@ -444,13 +444,9 @@ def run(params):
 
     print("----------- engine ------" ,params.batch.engine)
     if params.batch.engine == "auto":
-        params.batch.engine = batchjob.detect_engine()
+        params.batch.engine = batchjob.auto_engine()
     if params.batch.engine == "sge":
         batchjobs = batchjob.SGE(pe_name=params.batch.sge_pe_name)
-    elif params.batch.engine == "pbs":
-        batchjobs = batchjob.PBS(pe_name=params.batch.sge_pe_name)
-    elif params.batch.engine == "slurm":
-        batchjobs = batchjob.SLURM(pe_name=params.batch.sge_pe_name)
     elif params.batch.engine == "sh":
         batchjobs = batchjob.ExecLocal(max_parallel=params.batch.sh_max_jobs)
     else:
