@@ -1897,7 +1897,6 @@ This is an alpha-version. If you found something wrong, please let staff know! W
         print("ERROR: bl= is needed.")
         return
 
-    app = wx.App()
 
     from yamtbx.command_line import kamo_test_installation
     if config.params.engine == "xds" and not kamo_test_installation.tst_xds():
@@ -2068,6 +2067,8 @@ This is an alpha-version. If you found something wrong, please let staff know! W
         #         print("job is not found.")
         #         time.sleep(1)
     else:
+
+        app = wx.App()
         mainFrame = MainFrame(parent=None, id=wx.ID_ANY)
         app.TopWindow = mainFrame
         app.MainLoop()
