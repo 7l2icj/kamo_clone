@@ -147,6 +147,7 @@ class SGE(JobManager):
         #     raise SgeError("cannot find qsub or qstat command under $PATH")
 
         self.engine = detect_engine()
+        print("[debug]detect engine:",self.engine)
         if self.engine == "sge":
             self.qsub_cmd = lambda job_name,cpu,script_name:"qsub -j y -pe %s %d %s" % (job_name, cpu, script_name)
             self.qsub_regex = r"^Your job ([0-9]+) "
@@ -326,6 +327,13 @@ def detect_engine():
             else:
                 print("pbs detected. batch.engine=pbs ")
                 return "pbs"
-        except:
+        except Exception as e:
+            if e.returncode == 2:
+                if " -pe " in e.output:
+                    return "sge"
+                    print("sge detected. batch.engine=sge ")
+                else:
+                    print("pbs detected. batch.engine=pbs ")
+                    return "pbs"
             print("job scheduler was not found. batch.engine=sh")
             return "sh"
