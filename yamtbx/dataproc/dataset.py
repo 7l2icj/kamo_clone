@@ -367,7 +367,7 @@ def find_data_sets_from_dataset_paths_txt(input_file, include_dir=[], shorten_fr
         if not os.path.isabs(tmpl): tmpl = os.path.abspath(tmpl)
 
         if not directory_included(tmpl, include_dir=include_dir):
-            if logger: logger.info("Skipping dataset not included in include_dir: %s" % tmpl)
+            #if logger: logger.info("Skipping dataset not included in include_dir: %s" % tmpl)
             continue
             
         nr1o, nr2o = int(r.group(2)), int(r.group(3))
